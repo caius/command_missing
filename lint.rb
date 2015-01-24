@@ -14,18 +14,40 @@ def assert_equal(expected, actual)
 end
 at_exit { puts }
 
-output = %x[#{$binary} bash something]
-assert_equal 0, $?.exitstatus
-assert_equal "/bin/bash\n", output
+def run(args, &check_block)
+  print "args: #{args.inspect} -- "
+  output = %x[#{$binary} #{args.join(" ")}]
+  yield($?.exitstatus, output)
+  puts
+end
 
-output = %x[#{$binary} bas h something]
-assert_equal 0, $?.exitstatus
-assert_equal "/bin/bash\n", output
+# We don't expect to match valid binary names without any futzing - ZSH should've found them already
+run(%w(bash)) do |status, output|
+  assert_equal 1, status
+  assert_equal "", output
+end
 
-output = %x[#{$binary} bas fuck something]
-assert_equal 1, $?.exitstatus
-assert_equal "", output
+run(%w(bas h something)) do |status, output|
+  assert_equal 0, status
+  assert_equal "/bin/bash\n", output
+end
 
-output = %x[#{$binary} invalid something]
-assert_equal 1, $?.exitstatus
-assert_equal "", output
+run(%w(bas hsomething)) do |status, output|
+  assert_equal 0, status
+  assert_equal "/bin/bash\n", output
+end
+
+run(%w(bashs omething)) do |status, output|
+  assert_equal 0, status
+  assert_equal "/bin/bash\n", output
+end
+
+run(%w(bas fuck something)) do |status, output|
+  assert_equal 1, status
+  assert_equal "", output
+end
+
+run(%w(invalid something)) do |status, output|
+  assert_equal 1, status
+  assert_equal "", output
+end
