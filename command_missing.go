@@ -28,15 +28,13 @@ func appendIfMissing(slice []string, str string) []string {
 	return append(slice, str)
 }
 
-// Checks filename exists, is a regular file and has the executable bit set
-func isExecutableFile(filename string) bool {
-	if fileinfo, err := os.Stat(filename); err == nil {
-		if mode := fileinfo.Mode(); mode.IsRegular() && (mode&0111) != 0 {
-			return true
-		}
-	}
+type ExtendedFileMode struct {
+	os.FileMode
+}
 
-	return false
+// Checks filename exists, is a regular file and has the executable bit set
+func (mode ExtendedFileMode) IsExecutable() bool {
+	return (mode.FileMode & 0111) != 0
 }
 
 func main() {
@@ -106,10 +104,13 @@ func main() {
 			possibleFilename := filepath.Join(dir, possible)
 			// Debug.Println("possibleFilename", possibleFilename)
 
-			if isExecutableFile(possibleFilename) {
-				Debug.Println("Found ", possibleFilename, " exists!")
+			if stat, err := os.Stat(possibleFilename); err == nil {
+				mode := ExtendedFileMode{stat.Mode()}
+				if mode.IsRegular() && mode.IsExecutable() {
+					Debug.Println("Found ", possibleFilename)
 
-				cmd = possibleFilename
+					cmd = possibleFilename
+				}
 			}
 		}
 
