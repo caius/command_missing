@@ -29,17 +29,17 @@ end
 
 run(%w(bas h something)) do |status, output|
   assert_equal 0, status
-  assert_equal "/bin/bash\n", output
+  assert_equal "/bin/bash something\n", output
 end
 
 run(%w(bas hsomething)) do |status, output|
   assert_equal 0, status
-  assert_equal "/bin/bash\n", output
+  assert_equal "/bin/bash something\n", output
 end
 
 run(%w(bashs omething)) do |status, output|
   assert_equal 0, status
-  assert_equal "/bin/bash\n", output
+  assert_equal "/bin/bash something\n", output
 end
 
 run(%w(bas fuck something)) do |status, output|
