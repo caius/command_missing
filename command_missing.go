@@ -31,7 +31,7 @@ func appendIfMissing(slice []string, str string) []string {
 // Checks filename exists, is a regular file and has the executable bit set
 func isExecutableFile(filename string) bool {
 	if fileinfo, err := os.Stat(filename); err == nil {
-		if mode := fileinfo.Mode(); mode.IsRegular() && (mode & 0111) != 0 {
+		if mode := fileinfo.Mode(); mode.IsRegular() && (mode&0111) != 0 {
 			return true
 		}
 	}
