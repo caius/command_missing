@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"log"
 	"io"
 	"io/ioutil"
@@ -46,19 +47,36 @@ func which(possibleCmd string) (actualCmd string) {
 	return actualCmd
 }
 
+func candidates(one, two string) []string {
+	matches := []string{}
+
+	for i := 0; i < len(two) + 1; i++ {
+		matches = append(matches, fmt.Sprintf("%s%s", one, two[0:i]))
+	}
+
+	Debug.Printf("%q", matches)
+
+	return matches
+}
+
 func main() {
 	debugHandle := ioutil.Discard
 	// TODO: check for -d from $@ instead
-	if "d" == "d" {
+	if os.Getenv("DEBUG") != "" {
 		debugHandle = os.Stderr
 	}
 	Init(debugHandle, os.Stderr, os.Stdout)
 
-	cmd := which("bash2")
-	if cmd == "" {
-		Fatal.Println("Not found")
-		os.Exit(1)
-	} else {
-		Info.Println(cmd)
+	possibles := candidates(os.Args[1], os.Args[2])
+
+	for _, possible := range possibles {
+		cmd := which(possible)
+		if cmd != "" {
+			fmt.Println(cmd)
+			os.Exit(0)
+		}
 	}
+
+	Debug.Println("Not found: ", os.Args[1], os.Args[2])
+	os.Exit(1)
 }
