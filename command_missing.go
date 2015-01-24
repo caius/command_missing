@@ -1,12 +1,12 @@
 package main
 
 import (
-	"fmt"
 	"io/ioutil"
 	"log"
 	"os"
 	"path/filepath"
 	"strings"
+	"syscall"
 )
 
 var (
@@ -37,7 +37,36 @@ func (mode ExtendedFileMode) IsExecutable() bool {
 	return (mode.FileMode & 0111) != 0
 }
 
+func NibbleStart(source string) (string, string) {
+	result := ""
+	nibble := ""
+	if source != "" {
+		result = source[1:]
+		nibble = source[0:1]
+	}
+	return result, nibble
+}
+
+func NibbleEnd(source string) (string, string) {
+	result, nibble := "", ""
+	if source != "" {
+		result = source[0 : len(source)-1]
+		nibble = source[len(source)-1:]
+	}
+	return result, nibble
+}
+
+func Dup(source []string) []string {
+	destination := []string{}
+	for _, name := range source {
+		destination = append(destination, name)
+	}
+	return destination
+}
+
 func main() {
+
+	/* Setup logging */
 	debugHandle := ioutil.Discard
 	if os.Getenv("DEBUG") != "" {
 		debugHandle = os.Stderr
@@ -46,6 +75,8 @@ func main() {
 	Fatal = log.New(os.Stderr, "ERROR: ", 0)
 	Info = log.New(os.Stdout, "", 0)
 
+	/* We need a PATH to search */
+
 	if Path = os.Getenv("PATH"); Path != "" {
 		PathComponents = strings.Split(Path, string(os.PathListSeparator))
 	} else {
@@ -53,47 +84,51 @@ func main() {
 		os.Exit(2)
 	}
 
-	one, two := "", ""
-	// 0 is program name, 1+ is ARGV
-	switch {
-	case len(os.Args) == 2:
-		one = os.Args[1]
-	case len(os.Args) >= 3:
-		one = os.Args[1]
-		two = os.Args[2]
-	}
+	/* Grab ARGV for us to mutilate */
 
-	if one == "" && two == "" {
+	original_arguments := os.Args[1:]
+
+	if original_arguments[0] == "" && original_arguments[1] == "" {
 		// No Match, due to nothing to match
+		// TODO: handle "gitst" => "git st"
 		Debug.Println("no args to deal with")
 		os.Exit(1)
 	}
 
-	one_possibles := []string{}
-	two_possibles := []string{}
+	/* Generate matches for us to check laster */
 
-	for i := len(one) - 1; i > 0; i-- {
-		one_possibles = append(one_possibles, one[0:i])
-	}
+	var(
+		start, end []string
+		possibles [][]string
+	)
 
-	for i := 1; i < len(two)+1; i++ {
-		two_possibles = append(two_possibles, one+two[0:i])
-	}
+	// Try moving up to three characters each way to solve issue.
+	for i := 0; i < 3; i++ {
+		if len(possibles) >= 2 {
+			twofer := possibles[len(possibles)-2:]
+			start, end = Dup(twofer[0]), Dup(twofer[1])
+		} else {
+			start, end = Dup(original_arguments), Dup(original_arguments)
+		}
 
-	Debug.Printf("one_possibles: %q", one_possibles)
-	Debug.Printf("two_possibles: %q", two_possibles)
+		remainder, nibble := NibbleStart(start[1])
+		start[0] = start[0] + nibble
+		start[1] = remainder
+		if start[0] != "" {
+			possibles = append(possibles, start)
+		}
 
-	possibles := []string{}
-	for i, _ := range one_possibles {
-		possibles = appendIfMissing(possibles, one_possibles[i])
-		if i < len(two_possibles) && two_possibles[i] != "" {
-			possibles = appendIfMissing(possibles, two_possibles[i])
+		remainder, nibble = NibbleEnd(end[0])
+		end[0] = remainder
+		end[1] = nibble + end[1]
+		if end[0] != "" {
+			possibles = append(possibles, end)
 		}
 	}
 
-	Debug.Printf("%q", possibles)
+	Debug.Printf("possibles: %q", possibles)
 
-	cmd := ""
+	foundMatch := false
 
 	// And now check each possibility
 	for _, possible := range possibles {
@@ -101,23 +136,28 @@ func main() {
 		for _, dir := range PathComponents {
 			// Debug.Println("Testing ", dir)
 
-			possibleFilename := filepath.Join(dir, possible)
+			possibleFilename := filepath.Join(dir, possible[0])
 			// Debug.Println("possibleFilename", possibleFilename)
 
 			if stat, err := os.Stat(possibleFilename); err == nil {
 				mode := ExtendedFileMode{stat.Mode()}
 				if mode.IsRegular() && mode.IsExecutable() {
-					Debug.Println("Found ", possibleFilename)
+					Debug.Println("Found", possibleFilename)
 
-					cmd = possibleFilename
+					foundMatch = true
+					possible[0] = possibleFilename
+					break
 				}
 			}
 		}
 
 		// Searched all paths for this name, output a result & exit if we have one
-		if cmd != "" {
-			fmt.Println(cmd)
-			os.Exit(0)
+		if foundMatch {
+			cmd := possible[0]
+			possible[0] = "" // Exec#argv appears to need an empty [0] argument. WTF Go?!
+			args := possible
+			env := os.Environ()
+			syscall.Exec(cmd, args, env)
 		}
 	}
 
