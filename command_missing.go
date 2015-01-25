@@ -86,7 +86,11 @@ func main() {
 
 	/* Grab ARGV for us to mutilate */
 
-	original_arguments := os.Args[1:]
+	original_arguments := []string{"", ""}
+	if len(os.Args) >= 3 {
+		original_arguments[0] = os.Args[1]
+		original_arguments[1] = os.Args[2]
+	}
 
 	if original_arguments[0] == "" && original_arguments[1] == "" {
 		// No Match, due to nothing to match
