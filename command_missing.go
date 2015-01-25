@@ -1,12 +1,13 @@
 package main
 
 import (
+	"fmt"
 	"io/ioutil"
 	"log"
 	"os"
 	"path/filepath"
 	"strings"
-	"syscall"
+	// "syscall"
 )
 
 var (
@@ -158,10 +159,22 @@ func main() {
 		// Searched all paths for this name, output a result & exit if we have one
 		if foundMatch {
 			cmd := possible[0]
-			possible[0] = "" // Exec#argv appears to need an empty [0] argument. WTF Go?!
-			args := possible
-			env := os.Environ()
-			syscall.Exec(cmd, args, env)
+			// possible[0] = "" // Exec#argv appears to need an empty [0] argument. WTF Go?!
+			args := []string{}
+			for _, arg := range possible[1:] {
+				if arg != "" {
+					args = append(args, arg)
+				}
+			}
+			for _, arg := range os.Args[3:] {
+				if arg != "" {
+					args = append(args, arg)
+				}
+			}
+			// env := os.Environ()
+			// syscall.Exec(cmd, args, env)
+			fmt.Printf("%s %s\n", cmd, strings.Join(args, " "))
+			os.Exit(0)
 		}
 	}
 
