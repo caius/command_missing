@@ -159,8 +159,7 @@ func main() {
 		// Searched all paths for this name, output a result & exit if we have one
 		if foundMatch {
 			cmd := possible[0]
-			// possible[0] = "" // Exec#argv appears to need an empty [0] argument. WTF Go?!
-			args := []string{}
+			args := []string{cmd} // $0 is command name
 			for _, arg := range possible[1:] {
 				if arg != "" {
 					args = append(args, arg)
